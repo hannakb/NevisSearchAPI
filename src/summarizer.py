@@ -5,8 +5,16 @@ import re
 
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_client = None
+
+def get_openai_client() -> OpenAI:
+    global _client
+    if _client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY must be set at runtime")
+        _client = OpenAI(api_key=api_key)
+    return _client
 
 
 def generate_summary(content: str, max_length: int = 200) -> str:
@@ -34,6 +42,7 @@ def generate_summary(content: str, max_length: int = 200) -> str:
         word_limit = max_length // 5
         
         # Call OpenAI API for summarization
+        client = get_openai_client()
         response = client.chat.completions.create(
             model="gpt-4o-mini",  # Fast, cheap, good quality
             messages=[
