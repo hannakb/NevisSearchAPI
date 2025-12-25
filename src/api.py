@@ -5,11 +5,12 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
+import threading
 
-from . import models
-from . import schemas, crud
-from .database import get_db, init_db
-
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Track if DB is initialized
