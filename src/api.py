@@ -7,7 +7,8 @@ from sqlalchemy import text
 from typing import List, Optional
 import threading
 
-from .database import get_db
+from .database import get_db, init_db
+from . import schemas, crud
 
 logging.basicConfig(
     level=logging.INFO,
