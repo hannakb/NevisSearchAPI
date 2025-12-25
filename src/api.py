@@ -7,6 +7,8 @@ from sqlalchemy import text
 from typing import List, Optional
 import threading
 
+from .database import get_db
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
