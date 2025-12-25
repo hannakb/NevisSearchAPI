@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from . import models
 from . import schemas, crud
-from .database import get_db, init_db, engine
+from .database import get_db, init_db
 
 logger = logging.getLogger(__name__)
 
