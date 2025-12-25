@@ -12,6 +12,24 @@ from .database import get_db, init_db
 
 logger = logging.getLogger(__name__)
 
+# Track if DB is initialized
+_db_initialized = False
+_init_lock = threading.Lock()
+
+def ensure_db_initialized():
+    """Ensure database is initialized (idempotent)"""
+    global _db_initialized
+    
+    if not _db_initialized:
+        with _init_lock:
+            if not _db_initialized:  # Double-check inside lock
+                logger.info("=" * 60)
+                logger.info("INITIALIZING DATABASE ON FIRST REQUEST")
+                logger.info("=" * 60)
+                init_db()
+                _db_initialized = True
+                logger.info("✓ Database initialized")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,6 +57,7 @@ app = FastAPI(
 
 @app.get("/")
 def root():
+    ensure_db_initialized()
     return {
         "message": "Nevis Search API",
         "version": "1.0.0",
@@ -47,6 +66,7 @@ def root():
 @app.get("/health", tags=["Health"])
 def health_check(db: Session = Depends(get_db)):
     """Health check endpoint"""
+    ensure_db_initialized()
     try:
         # Test database connection
         db.execute(text("SELECT 1"))  # ← Use text() wrapper
