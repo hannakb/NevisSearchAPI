@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase
 import os
 import logging
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 _engine = None
@@ -16,6 +17,12 @@ def get_engine():
         if not database_url:
             raise RuntimeError("DATABASE_URL must be set at runtime")
         
+        # Fix Railway's postgres:// to postgresql://
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        
+        logger.info("🔌 Connecting to database...")
+        
         _engine = create_engine(
             database_url,
             echo=False,
@@ -25,6 +32,8 @@ def get_engine():
             _engine,
             expire_on_commit=False,
         )
+        
+        logger.info("✓ Database connection established")
         
         # Initialize pgvector extension
         _init_pgvector(_engine)
@@ -36,31 +45,13 @@ def _init_pgvector(engine):
     """Initialize pgvector extension (must run before creating tables)"""
     try:
         with engine.connect() as conn:
-            logger.info("Attempting to enable pgvector extension...")
+            logger.info("🔧 Attempting to enable pgvector extension...")
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
             conn.commit()
-            logger.info("✓ pgvector extension enabled successfully")
+            logger.info("✓ pgvector extension enabled")
     except Exception as e:
-        logger.error(f"✗ Failed to enable pgvector extension: {e}")
-        logger.error(
-            "\n" + "="*60 + "\n"
-            "PGVECTOR EXTENSION ERROR\n"
-            "="*60 + "\n"
-            "The 'vector' extension is not available in your PostgreSQL database.\n\n"
-            "To fix this on Railway:\n"
-            "1. Go to your PostgreSQL service in Railway dashboard\n"
-            "2. Click 'Data' tab\n"
-            "3. Run this SQL command:\n"
-            "   CREATE EXTENSION vector;\n\n"
-            "Alternative: Use a database with pgvector pre-installed:\n"
-            "  - Supabase (free tier): https://supabase.com\n"
-            "  - Neon (free tier): https://neon.tech\n"
-            "="*60
-        )
-        raise RuntimeError(
-            "pgvector extension is required but not available. "
-            "Please enable it in your PostgreSQL database."
-        ) from e
+        logger.error(f"✗ Failed to enable pgvector: {e}")
+        raise RuntimeError(f"pgvector extension is required: {e}") from e
 
 
 class Base(DeclarativeBase):
@@ -78,6 +69,32 @@ def get_db() -> Session:
 
 def init_db():
     """Create all database tables"""
+    logger.info("=" * 60)
+    logger.info("🚀 INITIALIZING DATABASE")
+    logger.info("=" * 60)
+    
+    # Get engine (this will also init pgvector)
     engine, _ = get_engine()
+    
+    # Import models to register them with Base
+    logger.info("📦 Importing models...")
+    from . import models  # noqa: F401
+    
+    # Check what tables will be created
+    logger.info(f"📋 Tables to create: {list(Base.metadata.tables.keys())}")
+    
+    # Create all tables
+    logger.info("🔨 Creating database tables...")
     Base.metadata.create_all(bind=engine)
-    logger.info("✓ Database tables created")
+    
+    # Verify tables were created
+    with engine.connect() as conn:
+        result = conn.execute(text(
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+        ))
+        existing_tables = [row[0] for row in result]
+        logger.info(f"✓ Tables in database: {existing_tables}")
+    
+    logger.info("=" * 60)
+    logger.info("✓ DATABASE INITIALIZATION COMPLETE")
+    logger.info("=" * 60)
