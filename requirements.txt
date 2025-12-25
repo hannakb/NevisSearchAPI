@@ -11,6 +11,7 @@ pytest-cov
 httpx  # Required for FastAPI TestClient
 
 # Embeddings (Open Source)
+--extra-index-url https://download.pytorch.org/whl/cpu
 sentence-transformers
 pgvector
 numpy
