@@ -1,9 +1,30 @@
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
-from .database import get_db, Base, get_engine
+from .database import get_db, Base, init_db
 from . import schemas, crud
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize database on startup"""
+    try:
+        # This will initialize pgvector and create tables
+        init_db()
+        logger.info("✓ Application startup complete")
+    except Exception as e:
+        logger.error(f"✗ Application startup failed: {e}")
+        raise
+    
+    yield
+    
+    logger.info("Application shutdown")
+
 
 
 app = FastAPI(
@@ -11,12 +32,6 @@ app = FastAPI(
     description="WealthTech search API for clients and documents",
     version="1.0.0",
 )
-
-@app.on_event("startup")
-def startup():
-    engine, _ = get_engine()
-    Base.metadata.create_all(engine)
-
 
 @app.get("/")
 def root():
