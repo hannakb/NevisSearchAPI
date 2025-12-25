@@ -1,11 +1,14 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
-from .database import get_db, Base, init_db
+
+from . import models
 from . import schemas, crud
+from .database import get_db, init_db, engine
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +17,11 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Initialize database on startup"""
     try:
-        # This will initialize pgvector and create tables
+        logger.info("Starting application initialization...")
+        
+        # Create tables (models must be imported first!)
         init_db()
+        
         logger.info("✓ Application startup complete")
     except Exception as e:
         logger.error(f"✗ Application startup failed: {e}")
@@ -24,8 +30,6 @@ async def lifespan(app: FastAPI):
     yield
     
     logger.info("Application shutdown")
-
-
 
 app = FastAPI(
     title="Nevis Search API",
