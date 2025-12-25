@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
-from .database import get_db
+from .database import get_db, Base, get_engine
 from . import schemas, crud
 
 
@@ -11,6 +11,11 @@ app = FastAPI(
     description="WealthTech search API for clients and documents",
     version="1.0.0",
 )
+
+@app.on_event("startup")
+def startup():
+    engine, _ = get_engine()
+    Base.metadata.create_all(engine)
 
 
 @app.get("/")
