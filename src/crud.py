@@ -40,6 +40,12 @@ def get_client(
 
     return client
 
+def list_clients(
+    session: Session
+) -> List[models.Client]:
+    client = session.query(models.Client).all()
+    return client
+
 
 # -------- Documents --------
 def create_document(

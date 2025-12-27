@@ -16,37 +16,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Track if DB is initialized
-# _db_initialized = False
-# _init_lock = threading.Lock()
-
-# def ensure_db_initialized():
-#     """Ensure database is initialized (idempotent)"""
-#     global _db_initialized
-    
-#     if not _db_initialized:
-#         with _init_lock:
-#             if not _db_initialized:  # Double-check inside lock
-#                 logger.info("=" * 60)
-#                 logger.info("INITIALIZING DATABASE ON FIRST REQUEST")
-#                 logger.info("=" * 60)
-#                 init_db()
-#                 _db_initialized = True
-#                 logger.info("✓ Database initialized")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database on startup"""
     try:
         logger.info("Starting application initialization...")
         
-        # Create tables (models must be imported first!)
         init_db()
         
-        logger.info("✓ Application startup complete")
+        logger.info("Application startup complete")
     except Exception as e:
-        logger.error(f"✗ Application startup failed: {e}")
+        logger.error(f"Application startup failed: {e}")
         raise
     
     yield
@@ -62,7 +42,6 @@ app = FastAPI(
 
 @app.get("/")
 def root():
-    # ensure_db_initialized()
     return {
         "message": "Nevis Search API",
         "version": "1.0.0",
@@ -71,7 +50,6 @@ def root():
 @app.get("/health", tags=["Health"])
 def health_check(db: Session = Depends(get_db)):
     """Health check endpoint"""
-    # ensure_db_initialized()
     try:
         # Test database connection
         db.execute(text("SELECT 1"))  # ← Use text() wrapper
@@ -105,6 +83,14 @@ def get_client(
 ):
     return crud.get_client(db, client_id)
 
+@app.get(
+    "/clients",
+    response_model=List[schemas.ClientResponse],
+)
+def list_clients(
+    db: Session = Depends(get_db),
+):
+    return crud.list_clients(db)
 
 # -------- Documents --------
 @app.post(
