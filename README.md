@@ -1,6 +1,8 @@
 # Nevis Search API
 
 WealthTech search API for clients and documents with semantic search capabilities.
+**Current production URL: https://nevissearchapi-production.up.railway.app/docs**
+
 
 ## Features
 
@@ -14,8 +16,6 @@ WealthTech search API for clients and documents with semantic search capabilitie
 ### Prerequisites
 
 - Docker and Docker Compose
-- Python 3.14
-- PostgreSQL with pgvector extension
 
 ### Running Locally
 
@@ -82,22 +82,22 @@ Tests are automatically run in GitHub Actions before any deployment. To run loca
 
 ### Railway
 
-1. Deploy pgvector service
+1. Deploy pgvector service - https://railway.com/deploy/3jJFCA
 2. Deploy GitHub code
-3. Add environment variables:
+3. Add environment variables to the deployed NevisSearchAPI service:
    - `DATABASE_URL` - `${{ pgvector.DATABASE_URL_PRIVATE }}`
-   - `OPENAI_API_KEY` - Your OpenAI API key
-   - `SEMANTIC_SIMILARITY_THRESHOLD` - Optional (default: 0.15)
+   - `OPENAI_API_KEY` - Your OpenAI API key (you can take one from docker-compose.yml, in future it should be made private)
+   - `SEMANTIC_SIMILARITY_THRESHOLD` - Optional (default: 0.15), so we could callibrate this withouth redeployment
 
 **Current production URL: https://nevissearchapi-production.up.railway.app/docs**
 
 ## Improvements to make
 
 0. ✅ Refactor search (completed)
-1. Add pagination
-2. Add async
+1. ✅ Add pagination (completed)
+2. Add async - if multiple advisors are going to access same data, we should add async support
 3. ✅ Add testing workflow (completed)
-4. Make docker image smaller
+4. Make docker image smaller, use python-slim instead of python docker image
 5. Make embedding creation run in background (takes too long to add document)
    - Maybe have it batched and processed in batches
    - Have queue that does that
