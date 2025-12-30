@@ -1,6 +1,7 @@
 # Nevis Search API
 
 WealthTech search API for clients and documents with semantic search capabilities.
+
 **Current production URL: https://nevissearchapi-production.up.railway.app/docs**
 
 
