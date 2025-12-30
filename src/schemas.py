@@ -31,6 +31,11 @@ class DocumentCreate(BaseModel):
     content: str = Field(min_length=1)
 
 
+class BatchDocumentCreate(BaseModel):
+    """Batch document creation request"""
+    documents: List[DocumentCreate] = Field(min_length=1, max_length=100, description="List of documents to create (1-100)")
+
+
 class DocumentResponse(BaseModel):
     id: str
     client_id: str

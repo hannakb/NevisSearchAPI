@@ -24,6 +24,8 @@ class APILimits:
     PAGINATION_DEFAULT_LIMIT = 10
     PAGINATION_MIN_LIMIT = 1
     PAGINATION_MAX_LIMIT = 100
+    BATCH_DOCUMENTS_MAX = 100
+    BATCH_DOCUMENTS_MIN = 1
 
 logging.basicConfig(
     level=logging.INFO,
@@ -242,6 +244,36 @@ def create_document(
 ):
     """Create document for a client by client_id"""
     return crud.create_document(db, client_id, document)
+
+
+@app.post(
+    "/clients/{client_id}/documents/batch",
+    response_model=List[schemas.DocumentResponse],
+    status_code=201,
+    tags=["Documents"]
+)
+def create_documents_batch(
+    client_id: str,
+    batch: schemas.BatchDocumentCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Create multiple documents for a client in a single batch operation.
+    
+    More efficient than creating documents one by one, especially for large datasets,
+    as it uses batch embedding generation.
+    
+    - **client_id**: The client ID
+    - **documents**: List of documents to create (1-100 documents per batch)
+    """
+    if len(batch.documents) > APILimits.BATCH_DOCUMENTS_MAX:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum {APILimits.BATCH_DOCUMENTS_MAX} documents allowed per batch"
+        )
+    
+    created_documents = crud.create_documents_batch(db, client_id, batch.documents)
+    return [schemas.DocumentResponse.model_validate(doc) for doc in created_documents]
 
 # -------- Summary --------
 @app.get(

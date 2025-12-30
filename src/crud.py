@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 from typing import List
 from . import models, schemas
-from .embeddings import generate_embedding
+from .embeddings import generate_embedding, generate_embeddings_batch
 from .summarizer import generate_summary
 
 # -------- Clients --------
@@ -77,6 +77,57 @@ def create_document(
     db.refresh(db_document)
 
     return db_document
+
+
+def create_documents_batch(
+    db: Session,
+    client_id: str,
+    documents: List[schemas.DocumentCreate],
+) -> List[models.Document]:
+    """
+    Create multiple documents for a client in a single batch operation.
+    
+    Uses batch embedding generation for better performance.
+    
+    Args:
+        db: Database session
+        client_id: Client ID
+        documents: List of documents to create
+        
+    Returns:
+        List of created document models
+    """
+    get_client(db, client_id)  # Verify client exists
+    
+    if not documents:
+        return []
+    
+    # Generate embeddings in batch (more efficient)
+    contents = [doc.content for doc in documents]
+    embeddings = generate_embeddings_batch(contents)
+    
+    # Create document models
+    db_documents = []
+    for doc, embedding in zip(documents, embeddings):
+        db_document = models.Document(
+            client_id=client_id,
+            title=doc.title,
+            content=doc.content,
+            summary=None,
+            embedding=embedding
+        )
+        db.add(db_document)
+        db_documents.append(db_document)
+    
+    # Commit all documents at once
+    db.commit()
+    
+    # Refresh all documents to get their IDs
+    for db_document in db_documents:
+        db.refresh(db_document)
+    
+    return db_documents
+
 
 def get_document(db: Session, document_id: str) -> models.Document:
     """Get document by ID"""
