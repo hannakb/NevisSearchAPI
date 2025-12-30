@@ -4,6 +4,9 @@ WealthTech search API for clients and documents with semantic search capabilitie
 
 **Current production URL: https://nevissearchapi-production.up.railway.app/docs**
 
+API usage:
+   - [API Documentation](./API_DOCUMENTATION.md) - Complete API reference
+   - [API Examples](./API_EXAMPLES.md) - Example queries and responses
 
 ## Features
 
@@ -43,9 +46,6 @@ docker-compose run --rm -e DATABASE_URL=postgresql://postgres:postgres@db:5432/n
 4. Interactive API documentation:
    - Swagger UI: http://localhost:8000/docs
    - ReDoc: http://localhost:8000/redoc
-5. Additional documentation:
-   - [API Documentation](./API_DOCUMENTATION.md) - Complete API reference
-   - [API Examples](./API_EXAMPLES.md) - Example queries and responses
 
 ### Environment Variables
 
