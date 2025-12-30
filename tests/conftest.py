@@ -1,3 +1,4 @@
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
@@ -8,7 +9,12 @@ from src.database import Base, get_db
 from src import models
 
 # Use the same database as the API (will clean tables between tests)
-DATABASE_URL = "postgresql://postgres:postgres@db:5432/nevis_search"
+# Can be overridden via TEST_DATABASE_URL environment variable
+# Default: Docker Compose service name (for local development)
+DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql://postgres:postgres@db:5432/nevis_search"
+)
 
 engine = create_engine(DATABASE_URL, isolation_level="AUTOCOMMIT")
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
