@@ -1,7 +1,9 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Generic, TypeVar
 from enum import Enum
+
+T = TypeVar('T')
 
 
 # -------- Clients --------
@@ -84,3 +86,30 @@ class SearchResponse(BaseModel):
     clients: List[ClientSearchResult] = []
     documents: List[DocumentSearchResult] = []
     total_results: int
+
+
+# -------- Pagination --------
+class PaginationParams(BaseModel):
+    """Pagination parameters"""
+    offset: int = Field(default=0, ge=0, description="Number of items to skip")
+    limit: int = Field(default=10, ge=1, le=100, description="Maximum number of items to return")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Generic paginated response"""
+    items: List[T]
+    total: int
+    offset: int
+    limit: int
+    has_next: bool
+    has_previous: bool
+
+    @property
+    def page(self) -> int:
+        """Current page number (1-indexed)"""
+        return (self.offset // self.limit) + 1 if self.limit > 0 else 1
+
+    @property
+    def total_pages(self) -> int:
+        """Total number of pages"""
+        return (self.total + self.limit - 1) // self.limit if self.limit > 0 else 1

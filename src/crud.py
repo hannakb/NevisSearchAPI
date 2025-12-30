@@ -40,10 +40,19 @@ def get_client(
     return client
 
 def list_clients(
-    db: Session
-) -> List[models.Client]:
-    client = db.query(models.Client).all()
-    return client
+    db: Session,
+    offset: int = 0,
+    limit: int = 10
+) -> tuple[List[models.Client], int]:
+    """
+    List clients with pagination
+    
+    Returns:
+        Tuple of (clients list, total count)
+    """
+    total = db.query(models.Client).count()
+    clients = db.query(models.Client).offset(offset).limit(limit).all()
+    return clients, total
 
 
 # -------- Documents --------
@@ -82,15 +91,28 @@ def get_document(db: Session, document_id: str) -> models.Document:
 def get_client_documents(
     db: Session,
     client_id: str,
-) -> list[models.Document]:
+    offset: int = 0,
+    limit: int = 10
+) -> tuple[list[models.Document], int]:
+    """
+    Get documents for a client with pagination
+    
+    Returns:
+        Tuple of (documents list, total count)
+    """
     get_client(db, client_id)  # Verify client exists
 
-    result = db.scalars(
-        select(models.Document).where(
-            models.Document.client_id == client_id
-        )
-    )
-    return list(result.all())
+    # Get total count
+    total = db.query(models.Document).filter(
+        models.Document.client_id == client_id
+    ).count()
+    
+    # Get paginated results
+    documents = db.query(models.Document).filter(
+        models.Document.client_id == client_id
+    ).offset(offset).limit(limit).all()
+    
+    return documents, total
 
 
 # -------- Summary --------

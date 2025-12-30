@@ -1,5 +1,5 @@
 from sentence_transformers import SentenceTransformer
-from typing import List
+from typing import List, Optional
 import logging
 import numpy as np
 
@@ -9,18 +9,20 @@ logger = logging.getLogger(__name__)
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # Fast, good quality, 384 dimensions
 EMBEDDING_DIMENSIONS = 384
 
-# Initialize model (lazy loading)
-_model = None
 
-
-def get_model() -> SentenceTransformer:
-    """Get or initialize the embedding model (singleton pattern)"""
-    global _model
-    if _model is None:
-        logger.info(f"Loading embedding model: {EMBEDDING_MODEL}")
-        _model = SentenceTransformer(EMBEDDING_MODEL)
-        logger.info(f"Model loaded successfully. Embedding dim: {EMBEDDING_DIMENSIONS}")
-    return _model
+class EmbeddingModel:
+    """Embedding model manager (singleton pattern using class variable)"""
+    
+    _model: Optional[SentenceTransformer] = None
+    
+    @classmethod
+    def get_model(cls) -> SentenceTransformer:
+        """Get or initialize the embedding model (singleton)"""
+        if cls._model is None:
+            logger.info(f"Loading embedding model: {EMBEDDING_MODEL}")
+            cls._model = SentenceTransformer(EMBEDDING_MODEL)
+            logger.info(f"Model loaded successfully. Embedding dim: {EMBEDDING_DIMENSIONS}")
+        return cls._model
 
 
 def generate_embedding(text: str) -> List[float]:
@@ -41,7 +43,7 @@ def generate_embedding(text: str) -> List[float]:
             return [0.0] * EMBEDDING_DIMENSIONS
         
         # Generate embedding
-        model = get_model()
+        model = EmbeddingModel.get_model()
         embedding = model.encode(text, convert_to_numpy=True)
         
         # Convert to list
@@ -78,7 +80,7 @@ def generate_embeddings_batch(texts: List[str]) -> List[List[float]]:
             return []
         
         # Generate embeddings in batch
-        model = get_model()
+        model = EmbeddingModel.get_model()
         embeddings = model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
         
         # Convert to list of lists
@@ -109,8 +111,18 @@ def calculate_similarity(embedding1: List[float], embedding2: List[float]) -> fl
         vec1 = np.array(embedding1)
         vec2 = np.array(embedding2)
         
+        # Calculate norms
+        norm1 = np.linalg.norm(vec1)
+        norm2 = np.linalg.norm(vec2)
+        
+        # Handle zero vectors (division by zero in cosine similarity)
+        if norm1 == 0.0 or norm2 == 0.0:
+            # If both are zero vectors, return 0.0 (no similarity)
+            # If only one is zero, return 0.0 (orthogonal)
+            return 0.0
+        
         # Cosine similarity
-        similarity = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+        similarity = np.dot(vec1, vec2) / (norm1 * norm2)
         
         return float(similarity)
     

@@ -10,9 +10,11 @@ class TestCreateDocument:
         
         assert response.status_code == 201
         data = response.json()
-        assert data["title"] == sample_document_data["title"]
-        assert data["content"] == sample_document_data["content"]
+        # Check that all input fields match the response
+        for key, value in sample_document_data.items():
+            assert data[key] == value
         assert data["client_id"] == client_id
+        # Check that server-generated fields are present
         assert "id" in data
         assert "created_at" in data
     
@@ -52,8 +54,15 @@ class TestGetClientDocuments:
         response = client.get(f"/clients/{client_id}/documents")
         
         assert response.status_code == 200
-        documents = response.json()
+        data = response.json()
+        # Verify paginated response structure
+        assert "items" in data
+        assert "total" in data
+        assert "offset" in data
+        assert "limit" in data
+        documents = data["items"]
         assert len(documents) == 3
+        assert data["total"] == 3
         assert all(doc["client_id"] == client_id for doc in documents)
     
     def test_get_documents_empty_list(self, client, create_client):
@@ -62,7 +71,12 @@ class TestGetClientDocuments:
         response = client.get(f"/clients/{client_id}/documents")
         
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        # Verify paginated response structure
+        assert "items" in data
+        assert "total" in data
+        assert data["total"] == 0
+        assert len(data["items"]) == 0
     
     def test_get_documents_client_not_found(self, client):
         """Test retrieving documents for non-existent client"""

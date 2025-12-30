@@ -9,10 +9,10 @@ class TestCreateClient:
         
         assert response.status_code == 201
         data = response.json()
-        assert data["first_name"] == sample_client_data["first_name"]
-        assert data["last_name"] == sample_client_data["last_name"]
-        assert data["email"] == sample_client_data["email"]
-        assert data["description"] == sample_client_data["description"]
+        # Check that all input fields match the response
+        for key, value in sample_client_data.items():
+            assert data[key] == value
+        # Check that server-generated fields are present
         assert "id" in data
         assert "created_at" in data
     
@@ -76,10 +76,9 @@ class TestGetClient:
         
         # Verify field values match the created client
         assert data["id"] == client_id
-        assert data["first_name"] == create_client["first_name"]
-        assert data["last_name"] == create_client["last_name"]
-        assert data["email"] == create_client["email"]
-        assert data["description"] == create_client["description"]
+        # Check all fields from created client match
+        for key in ["first_name", "last_name", "email", "description"]:
+            assert data[key] == create_client[key]
         
         # Verify created_at is a valid datetime string (Pydantic serializes to ISO format)
         assert isinstance(data["created_at"], str)
@@ -145,22 +144,29 @@ class TestListClients:
     """Tests for listing clients"""
     
     def test_list_clients_success(self, client, create_client):
-        """Test successful client listing"""
+        """Test successful client listing with pagination"""
         response = client.get("/clients")
         
         assert response.status_code == 200
         data = response.json()
         
-        # Verify response is a list
-        assert isinstance(data, list)
-        assert len(data) > 0
+        assert "items" in data
+        assert "total" in data
+        assert "offset" in data
+        assert "limit" in data
+        assert "has_next" in data
+        assert "has_previous" in data
+        assert isinstance(data["items"], list)
+        assert data["total"] >= 1
+        assert data["offset"] == 0
+        assert data["limit"] == 10
         
         # Verify the created client is in the list
-        client_ids = [c["id"] for c in data]
+        client_ids = [c["id"] for c in data["items"]]
         assert create_client["id"] in client_ids
         
         # Verify all items have required fields
-        for client_item in data:
+        for client_item in data["items"]:
             assert "id" in client_item
             assert "first_name" in client_item
             assert "last_name" in client_item
@@ -174,8 +180,13 @@ class TestListClients:
         
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        # May be empty or contain clients from other tests depending on test isolation
+        
+        # Verify paginated response structure
+        assert "items" in data
+        assert "total" in data
+        assert isinstance(data["items"], list)
+        assert data["total"] == 0
+        assert len(data["items"]) == 0
     
     def test_list_clients_multiple(self, client, sample_client_data):
         """Test listing multiple clients"""
@@ -197,6 +208,6 @@ class TestListClients:
         data = response.json()
         
         # Verify all created clients are in the list
-        client_ids = [c["id"] for c in data]
+        client_ids = [c["id"] for c in data["items"]]
         for created_client in clients_created:
             assert created_client["id"] in client_ids

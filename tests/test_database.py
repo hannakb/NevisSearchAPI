@@ -2,7 +2,7 @@
 import pytest
 from sqlalchemy import text
 
-from src.database import init_db, get_engine, Base
+from src.database import init_db, get_engine, Base, Database
 
 
 @pytest.fixture
@@ -11,7 +11,6 @@ def fresh_db():
     import os
     from sqlalchemy import create_engine
     from tests.conftest import DATABASE_URL
-    from src.database import _db
     
     # Create engine directly to avoid any issues
     test_engine = create_engine(DATABASE_URL, isolation_level="AUTOCOMMIT")
@@ -26,8 +25,8 @@ def fresh_db():
     
     # Reset the Database singleton to ensure it creates a fresh engine
     # This ensures init_db() will use a fresh connection
-    _db._engine = None
-    _db._session_local = None
+    Database._engine = None
+    Database._session_local = None
     
     yield test_engine
     
@@ -36,8 +35,8 @@ def fresh_db():
     test_engine.dispose()
     
     # Reset singleton again for next test
-    _db._engine = None
-    _db._session_local = None
+    Database._engine = None
+    Database._session_local = None
 
 
 class TestDatabaseInitialization:

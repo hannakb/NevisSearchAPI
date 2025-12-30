@@ -17,26 +17,28 @@ class OpenAIConfig:
     CHARS_PER_WORD = 5  # Average characters per word for estimation
 
 
-_client: Optional[OpenAI] = None
-_client_api_key: Optional[str] = None  # Track which API key the client was created with
-
-
-def get_openai_client() -> OpenAI:
-    """Get or create OpenAI client (singleton)"""
-    global _client, _client_api_key
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY must be set at runtime")
+class OpenAIClient:
+    """OpenAI client manager (singleton pattern using class variables)"""
     
-    # Reset client if API key changed
-    if _client is not None and _client_api_key != api_key:
-        _client = None
-        _client_api_key = None
+    _client: Optional[OpenAI] = None
+    _client_api_key: Optional[str] = None  # Track which API key the client was created with
     
-    if _client is None:
-        _client = OpenAI(api_key=api_key)
-        _client_api_key = api_key
-    return _client
+    @classmethod
+    def get_client(cls) -> OpenAI:
+        """Get or create OpenAI client (singleton)"""
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY must be set at runtime")
+        
+        # Reset client if API key changed
+        if cls._client is not None and cls._client_api_key != api_key:
+            cls._client = None
+            cls._client_api_key = None
+        
+        if cls._client is None:
+            cls._client = OpenAI(api_key=api_key)
+            cls._client_api_key = api_key
+        return cls._client
 
 
 def check_openai_availability() -> dict:
@@ -76,7 +78,7 @@ def check_openai_availability() -> dict:
     
     # Try to connect to API
     try:
-        client = get_openai_client()
+        client = OpenAIClient.get_client()
         
         # List models (free API call that doesn't consume tokens)
         models_response = client.models.list()
@@ -136,7 +138,7 @@ def generate_summary(content: str, max_length: int = 200) -> str:
         word_limit = max_length // OpenAIConfig.CHARS_PER_WORD
         
         # Call OpenAI API for summarization
-        client = get_openai_client()
+        client = OpenAIClient.get_client()
         response = client.chat.completions.create(
             model=OpenAIConfig.MODEL,
             messages=[

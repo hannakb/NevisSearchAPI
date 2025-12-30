@@ -39,7 +39,12 @@ docker-compose run --rm -e DATABASE_URL=postgresql://postgres:postgres@db:5432/n
 ```
 
 3. API will be available at http://localhost:8000
-4. API docs at http://localhost:8000/docs
+4. Interactive API documentation:
+   - Swagger UI: http://localhost:8000/docs
+   - ReDoc: http://localhost:8000/redoc
+5. Additional documentation:
+   - [API Documentation](./API_DOCUMENTATION.md) - Complete API reference
+   - [API Examples](./API_EXAMPLES.md) - Example queries and responses
 
 ### Environment Variables
 

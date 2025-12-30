@@ -21,6 +21,9 @@ class APILimits:
     SUMMARY_LENGTH_MIN = 50
     SUMMARY_LENGTH_DEFAULT = 200
     SUMMARY_LENGTH_MAX = 500
+    PAGINATION_DEFAULT_LIMIT = 10
+    PAGINATION_MIN_LIMIT = 1
+    PAGINATION_MAX_LIMIT = 100
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,8 +54,31 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     lifespan = lifespan,
     title="Nevis Search API",
-    description="WealthTech search API for clients and documents",
+    description="""
+    WealthTech search API for clients and documents with semantic search capabilities.
+    
+    ## Features
+    
+    - Client and document management
+    - Hybrid search (keyword + semantic similarity)
+    - Document summarization with OpenAI
+    - Vector embeddings for semantic search
+    - Pagination support
+    
+    ## Interactive Documentation
+    
+    - **Swagger UI:** `/docs` - Interactive API explorer
+    - **ReDoc:** `/redoc` - Alternative documentation interface
+    
+    ## Additional Documentation
+    
+    - **API Examples:** See `API_EXAMPLES.md` for detailed request/response examples
+    - **Full Documentation:** See `API_DOCUMENTATION.md` for complete API reference
+    """,
     version="1.0.0",
+    contact={
+        "name": "Nevis Search API",
+    },
 )
 
 @app.get("/")
@@ -83,15 +109,15 @@ def openai_health_check():
     Returns detailed status about OpenAI integration
     """
     
-    status = check_openai_availability()
+    openai_status = check_openai_availability()
     
-    if status['available']:
+    if openai_status['available']:
         return {
             "status": "healthy",
             "openai_api": "connected",
             "api_key": "valid",
-            "models_count": len(status['models_accessible']) if status['models_accessible'] else 0,
-            "sample_models": status['models_accessible'][:5] if status['models_accessible'] else []
+            "models_count": len(openai_status['models_accessible']) if openai_status['models_accessible'] else 0,
+            "sample_models": openai_status['models_accessible'][:5] if openai_status['models_accessible'] else []
         }
     else:
         return JSONResponse(
@@ -99,21 +125,42 @@ def openai_health_check():
             content={
                 "status": "unhealthy",
                 "openai_api": "disconnected",
-                "api_key": "valid" if status['api_key_valid'] else "invalid",
-                "error": status['error']
+                "api_key": "valid" if openai_status['api_key_valid'] else "invalid",
+                "error": openai_status['error']
             }
         )
 
 # -------- Clients --------
 @app.get(
     "/clients",
-    response_model=List[schemas.ClientResponse],
+    response_model=schemas.PaginatedResponse[schemas.ClientResponse],
 )
 def list_clients(
+    offset: int = Query(0, ge=0, description="Number of clients to skip"),
+    limit: int = Query(
+        APILimits.PAGINATION_DEFAULT_LIMIT,
+        ge=APILimits.PAGINATION_MIN_LIMIT,
+        le=APILimits.PAGINATION_MAX_LIMIT,
+        description="Maximum number of clients to return"
+    ),
     db: Session = Depends(get_db),
 ):
-    """List existing clients"""
-    return crud.list_clients(db)
+    """
+    List existing clients with pagination
+    
+    - **offset**: Number of clients to skip (default: 0)
+    - **limit**: Maximum number of clients to return (default: 10, max: 100)
+    """
+    clients, total = crud.list_clients(db, offset=offset, limit=limit)
+    
+    return schemas.PaginatedResponse(
+        items=[schemas.ClientResponse.model_validate(client) for client in clients],
+        total=total,
+        offset=offset,
+        limit=limit,
+        has_next=(offset + limit) < total,
+        has_previous=offset > 0
+    )
 
 @app.get(
     "/clients/{client_id}",
@@ -152,14 +199,36 @@ def get_document(document_id: str, db: Session = Depends(get_db)):
 
 @app.get(
     "/clients/{client_id}/documents",
-    response_model=List[schemas.DocumentResponse],
+    response_model=schemas.PaginatedResponse[schemas.DocumentResponse],
 )
 def get_client_documents(
     client_id: str,
+    offset: int = Query(0, ge=0, description="Number of documents to skip"),
+    limit: int = Query(
+        APILimits.PAGINATION_DEFAULT_LIMIT,
+        ge=APILimits.PAGINATION_MIN_LIMIT,
+        le=APILimits.PAGINATION_MAX_LIMIT,
+        description="Maximum number of documents to return"
+    ),
     db: Session = Depends(get_db),
 ):
-    """Get documents of one client by client_id"""
-    return crud.get_client_documents(db, client_id)
+    """
+    Get documents of one client by client_id with pagination
+    
+    - **client_id**: The client ID
+    - **offset**: Number of documents to skip (default: 0)
+    - **limit**: Maximum number of documents to return (default: 10, max: 100)
+    """
+    documents, total = crud.get_client_documents(db, client_id, offset=offset, limit=limit)
+    
+    return schemas.PaginatedResponse(
+        items=[schemas.DocumentResponse.model_validate(doc) for doc in documents],
+        total=total,
+        offset=offset,
+        limit=limit,
+        has_next=(offset + limit) < total,
+        has_previous=offset > 0
+    )
 
 @app.post(
     "/clients/{client_id}/documents",

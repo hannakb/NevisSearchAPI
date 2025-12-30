@@ -14,11 +14,10 @@ class Base(DeclarativeBase):
 
 
 class Database:
-
-    def __init__(self) -> None:
-        """Initialize the database manager (lazy initialization)."""
-        self._engine: Engine | None = None
-        self._session_local: sessionmaker[Session] | None = None
+    """Database manager (singleton pattern using class variables)"""
+    
+    _engine: Engine | None = None
+    _session_local: sessionmaker[Session] | None = None
 
     @staticmethod
     def _normalize_database_url(url: str) -> str:
@@ -59,9 +58,10 @@ class Database:
                 f"pgvector extension is required but could not be initialized: {e}"
             ) from e
 
-    def _create_engine(self) -> Engine:
+    @classmethod
+    def _create_engine(cls) -> Engine:
         """Create and configure SQLAlchemy engine."""
-        database_url = Database._get_database_url()
+        database_url = cls._get_database_url()
 
         logger.info("Creating database engine...")
         engine = create_engine(
@@ -72,48 +72,52 @@ class Database:
         logger.info("Database engine created successfully")
 
         # Initialize pgvector extension
-        Database._init_pgvector_extension(engine)
+        cls._init_pgvector_extension(engine)
 
         return engine
 
-    def get_engine(self) -> Engine:
+    @classmethod
+    def get_engine(cls) -> Engine:
         """
         Get the database engine (lazy initialization).
         
         Creates the engine on first call, reuses on subsequent calls.
         """
-        if self._engine is None:
-            self._engine = self._create_engine()
-        return self._engine
+        if cls._engine is None:
+            cls._engine = cls._create_engine()
+        return cls._engine
 
-    def get_session_local(self) -> sessionmaker[Session]:
+    @classmethod
+    def get_session_local(cls) -> sessionmaker[Session]:
         """
         Get the session factory (lazy initialization).
         
         Creates the sessionmaker on first call, reuses on subsequent calls.
         """
-        if self._session_local is None:
-            engine = self.get_engine()
-            self._session_local = sessionmaker(
+        if cls._session_local is None:
+            engine = cls.get_engine()
+            cls._session_local = sessionmaker(
                 bind=engine,
                 expire_on_commit=False,
             )
-        return self._session_local
+        return cls._session_local
 
-    def get_db(self) -> Generator[Session, None, None]:
+    @classmethod
+    def get_db(cls) -> Generator[Session, None, None]:
         """
         Dependency injection function for FastAPI route handlers.
         
         Yields a database session and ensures it's closed after use.
         """
-        SessionLocal = self.get_session_local()
+        SessionLocal = cls.get_session_local()
         db = SessionLocal()
         try:
             yield db
         finally:
             db.close()
 
-    def init_db(self) -> None:
+    @classmethod
+    def init_db(cls) -> None:
         """
         Initialize the database by creating all tables.
         
@@ -128,7 +132,7 @@ class Database:
         logger.info("=" * 60)
 
         # Get engine (this will also initialize pgvector)
-        engine = self.get_engine()
+        engine = cls.get_engine()
 
         # Import models to register them with Base.metadata
         from . import models  # noqa: F401
@@ -153,7 +157,7 @@ class Database:
             logger.info(f"Tables in database: {', '.join(existing_tables)}")
 
         # Create vector index for efficient semantic search
-        self._create_vector_index(engine)
+        cls._create_vector_index(engine)
 
         logger.info("=" * 60)
         logger.info("Database initialization complete")
@@ -203,18 +207,11 @@ class Database:
             # Don't raise - index is optional for functionality, just affects performance
 
 
-_db = Database()
-
-
-# Public API functions that delegate to the module-level instance
+# Public API functions for FastAPI dependency injection
+# These wrapper functions are needed because FastAPI's Depends() requires functions, not class methods
 def get_engine() -> Engine:
     """Get the database engine."""
-    return _db.get_engine()
-
-
-def get_session_local() -> sessionmaker[Session]:
-    """Get the session factory."""
-    return _db.get_session_local()
+    return Database.get_engine()
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -223,9 +220,9 @@ def get_db() -> Generator[Session, None, None]:
     
     Yields a database session and ensures it's closed after use.
     """
-    yield from _db.get_db()
+    yield from Database.get_db()
 
 
 def init_db() -> None:
     """Initialize the database by creating all tables."""
-    _db.init_db()
+    Database.init_db()
