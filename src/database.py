@@ -152,9 +152,55 @@ class Database:
             existing_tables = [row[0] for row in result]
             logger.info(f"Tables in database: {', '.join(existing_tables)}")
 
+        # Create vector index for efficient semantic search
+        self._create_vector_index(engine)
+
         logger.info("=" * 60)
         logger.info("Database initialization complete")
         logger.info("=" * 60)
+
+    @staticmethod
+    def _create_vector_index(engine: Engine) -> None:
+        """
+        Create HNSW index on document embeddings for efficient vector similarity search.
+        
+        HNSW (Hierarchical Navigable Small World) index is recommended for large datasets
+        as it provides fast approximate nearest neighbor search with logarithmic complexity.
+        """
+        try:
+            logger.info("Creating vector index on documents.embedding...")
+            with engine.begin() as conn:
+                # Check if index already exists
+                index_check = conn.execute(
+                    text("""
+                        SELECT EXISTS (
+                            SELECT 1 FROM pg_indexes 
+                            WHERE tablename = 'documents' 
+                            AND indexname = 'documents_embedding_hnsw_idx'
+                        )
+                    """)
+                )
+                index_exists = index_check.scalar()
+                
+                if not index_exists:
+                    # Create HNSW index with default parameters
+                    # m=16: number of connections per layer (balance between speed and memory)
+                    # ef_construction=64: size of dynamic candidate list (higher = better quality, slower build)
+                    conn.execute(
+                        text("""
+                            CREATE INDEX documents_embedding_hnsw_idx 
+                            ON documents 
+                            USING hnsw (embedding vector_cosine_ops)
+                            WITH (m = 16, ef_construction = 64)
+                        """)
+                    )
+                    logger.info("Vector index created successfully")
+                else:
+                    logger.info("Vector index already exists, skipping creation")
+        except Exception as e:
+            logger.warning(f"Failed to create vector index: {e}")
+            logger.warning("Vector searches will work but may be slower without index")
+            # Don't raise - index is optional for functionality, just affects performance
 
 
 _db = Database()
