@@ -4,11 +4,10 @@ SQLAlchemy
 psycopg2-binary
 pydantic
 pydantic[email]
-# pydantic-settings==2.12.0
-# python-dotenv==1.2.1
 pytest
 pytest-cov
 httpx  # Required for FastAPI TestClient
+requests  # Required for load_test_data.py script
 
 # Embeddings (Open Source)
 --extra-index-url https://download.pytorch.org/whl/cpu

@@ -250,9 +250,93 @@ def generate_document(client_name: str, doc_type: str) -> Dict:
             "num_payments": random.randint(1, 12)
         }
         
-    # Add more document type value generation as needed...
-    # (Similar patterns for other document types)
-    
+    elif doc_type == "insurance_policy":
+        values = {
+            "policy": str(random.randint(1000000, 9999999)),
+            "name": client_name,
+            "coverage": random.randint(100_000, 5_000_000),
+            "policy_type": random.choice(["Term Life", "Whole Life", "Universal Life"]),
+            "premium": random.randint(500, 15000),
+            "beneficiaries": random.choice(["Spouse", "Children", "Estate", "Trust"]),
+            "effective": (datetime.now() - timedelta(days=random.randint(30, 365))).strftime("%B %d, %Y"),
+            "renewal": (datetime.now() + timedelta(days=random.randint(180, 365))).strftime("%B %d, %Y"),
+            "address": f"{random.randint(100, 9999)} {random.choice(['Main', 'Oak', 'Maple', 'Cedar', 'Pine'])} {random.choice(['St', 'Ave', 'Blvd', 'Dr'])}, {random.choice(['San Francisco', 'New York', 'Chicago', 'Boston', 'Seattle'])}, {random.choice(['CA', 'NY', 'IL', 'MA', 'WA'])} {random.randint(10000, 99999)}",
+            "deductible": random.randint(500, 5000),
+            "liability": random.randint(100_000, 1_000_000),
+            "expiration": (datetime.now() + timedelta(days=random.randint(180, 365))).strftime("%B %d, %Y"),
+            "coverage_type": random.choice(["Comprehensive", "HDHP", "PPO", "HMO", "EPO"]),
+            "oop_max": random.randint(3000, 10000),
+            "copay": random.choice(["$20", "$30", "$40", "$50"]),
+            "coinsurance": random.choice([10, 20, 30])
+        }
+        
+    elif doc_type == "estate_document":
+        values = {
+            "name": client_name,
+            "date": (datetime.now() - timedelta(days=random.randint(30, 365))).strftime("%B %d, %Y"),
+            "beneficiaries": random.choice(["Spouse and children", "Children only", "Charitable organizations", "Trust"]),
+            "executor": random.choice(["Spouse", "Adult child", "Attorney", "Trust company"]),
+            "assets": random.randint(500_000, 10_000_000),
+            "successor": random.choice(["Adult child", "Sibling", "Attorney", "Trust company"]),
+            "agent": random.choice(["Spouse", "Adult child", "Sibling"]),
+            "effective": (datetime.now() - timedelta(days=random.randint(30, 365))).strftime("%B %d, %Y")
+        }
+        
+    elif doc_type == "loan_document":
+        amount = random.randint(10_000, 500_000)
+        rate = random.uniform(4.0, 12.0)
+        term = random.choice([12, 24, 36, 48, 60])
+        monthly_payment = (amount * (rate/100/12)) / (1 - (1 + rate/100/12)**(-term))
+        values = {
+            "name": client_name,
+            "amount": amount,
+            "rate": round(rate, 2),
+            "term": term,
+            "payment": round(monthly_payment, 2),
+            "purpose": random.choice(["Auto purchase", "Home improvement", "Debt consolidation", "Business investment", "Education"]),
+            "origination": (datetime.now() - timedelta(days=random.randint(30, 180))).strftime("%B %d, %Y"),
+            "maturity": (datetime.now() + timedelta(days=term * 30)).strftime("%B %d, %Y"),
+            "month": random.choice(months),
+            "year": random.choice([2023, 2024]),
+            "loan": str(random.randint(100000000, 999999999)),
+            "vehicle": random.choice(["2023 Honda Accord", "2022 Toyota Camry", "2024 BMW 3 Series", "2023 Tesla Model 3"]),
+            "original": amount,
+            "balance": int(amount * random.uniform(0.3, 0.9)),
+            "remaining": random.randint(6, term - 6),
+            "payoff": int(amount * random.uniform(0.3, 0.9)),
+            "loan_type": random.choice(["Federal Direct", "Private", "Stafford", "Parent PLUS"]),
+            "forbearance": random.choice(["Active", "Inactive", "Pending"]),
+            "plan": random.choice(["Standard", "Income-driven", "Extended", "Graduated"])
+        }
+        
+    elif doc_type == "retirement_statement":
+        balance = random.randint(50_000, 2_000_000)
+        values = {
+            "quarter": random.randint(1, 4),
+            "year": random.choice([2023, 2024]),
+            "month": random.choice(months),
+            "name": client_name,
+            "employer": random.choice(["Tech Corp", "Financial Services Inc", "Healthcare Systems", "Manufacturing Co"]),
+            "balance": balance,
+            "employee": random.randint(5000, 25000),
+            "match": random.randint(2500, 15000),
+            "allocation": random.choice(["60% Stocks, 30% Bonds, 10% Cash", "80% Stocks, 20% Bonds", "50% Stocks, 40% Bonds, 10% Real Estate"]),
+            "vested": int(balance * random.uniform(0.8, 1.0)),
+            "account": str(random.randint(100000000, 999999999)),
+            "type": random.choice(["Traditional", "Roth", "SEP"]),
+            "beginning": int(balance * 0.95),
+            "contributions": random.randint(5000, 25000),
+            "earnings": random.randint(-10000, 50000),
+            "ending": balance,
+            "ytd": round(random.uniform(-5, 15), 2),
+            "years": random.randint(5, 30),
+            "vested_pct": random.randint(80, 100),
+            "age": random.randint(55, 70),
+            "benefit": random.randint(2000, 8000),
+            "survivor": random.randint(1500, 6000),
+            "early_age": random.randint(55, 62)
+        }
+        
     content = template.format(**values)
     
     # Generate appropriate titles

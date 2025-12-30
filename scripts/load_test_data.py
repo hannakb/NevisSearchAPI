@@ -6,7 +6,7 @@ import json
 import time
 from typing import Dict, List
 
-API_URL = "http://localhost:8000"  # Change to your API URL
+API_URL = "https://nevissearchapi-production.up.railway.app/"  # Change to your API URL
 
 
 def load_data(filename: str = "test_data_medium.json"):
