@@ -89,6 +89,7 @@ Tests are automatically run in GitHub Actions before any deployment. To run loca
    - `DATABASE_URL` - `${{ pgvector.DATABASE_URL_PRIVATE }}`
    - `OPENAI_API_KEY` - Your OpenAI API key (you can take one from docker-compose.yml, in future it should be made private)
    - `SEMANTIC_SIMILARITY_THRESHOLD` - Optional (default: 0.15), so we could callibrate this withouth redeployment
+4. (optional) Enable waiting for Github CI to complete before deployment in settings
 
 **Current production URL: https://nevissearchapi-production.up.railway.app/docs**
 
