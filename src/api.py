@@ -231,7 +231,6 @@ def search(
     q: str,
     type: schemas.SearchType = schemas.SearchType.ALL,
     limit: int = SEARCH_DEFAULT_LIMIT,
-    semantic: bool = True,  # ← Add this parameter
     db: Session = Depends(get_db)
 ):
     """
@@ -240,7 +239,6 @@ def search(
     - **q**: Search query string
     - **type**: Search type - 'all', 'clients', or 'documents' (default: all)
     - **limit**: Maximum number of results per type (default: 10)
-    - **semantic**: Use semantic search for documents (default: True)
     """
     if not q or not q.strip():
         raise HTTPException(
@@ -255,7 +253,6 @@ def search(
         )
     
     # Perform search (always uses hybrid search for documents)
-    # Note: semantic parameter is currently not used as perform_search always uses hybrid
     clients_results, documents_results = search_module.perform_search(
         db, q, type.value, limit
     )

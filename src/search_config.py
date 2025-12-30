@@ -1,4 +1,5 @@
 """Search configuration constants and enums."""
+import os
 from enum import IntEnum
 from dataclasses import dataclass
 
@@ -28,7 +29,11 @@ class HybridSearchWeights:
 
 
 # Semantic search configuration
-SEMANTIC_SIMILARITY_THRESHOLD = 0.3  # Minimum similarity score to include in results
+# Can be overridden via SEMANTIC_SIMILARITY_THRESHOLD environment variable
+SEMANTIC_SIMILARITY_THRESHOLD = float(
+    os.getenv("SEMANTIC_SIMILARITY_THRESHOLD", "0.15")
+)
+# Default: 0.15 - filters out weak/unrelated results (noise) while still allowing
 
 # Search limits
 SEARCH_DEFAULT_LIMIT = 10

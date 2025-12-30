@@ -101,21 +101,40 @@ def search_documents_keyword(
     limit: int = SEARCH_DEFAULT_LIMIT
 ) -> List[Tuple[models.Document, float, str]]:
     """
-    Search documents by title or content with database-level scoring
+    Search documents by title or content with database-level scoring.
+    Supports both phrase matching and word-level matching for better recall.
+    
     Returns list of (document, score, match_field) tuples
     """
     if not query or not query.strip():
         return []
     
     query_lower = query.lower().strip()
-    query_words = query_lower.split()
+    query_words = [w.strip() for w in query_lower.split() if w.strip()]
+    
+    # Build filter conditions: phrase match OR all words match
+    # This allows "machine learning" to match documents with "machine translation"
+    filter_conditions = [
+        func.lower(models.Document.title).like(f'%{query_lower}%'),
+        func.lower(models.Document.content).like(f'%{query_lower}%')
+    ]
+    
+    # Add word-level matching: match if ANY word appears (for better recall)
+    # This helps when query words appear separately in the document
+    for word in query_words:
+        filter_conditions.extend([
+            func.lower(models.Document.title).like(f'%{word}%'),
+            func.lower(models.Document.content).like(f'%{word}%')
+        ])
     
     # Build relevance score using SearchScore enum
+    # Prioritize phrase matches, then word matches
     relevance_score = case(
-        (func.lower(models.Document.title) == query_lower, SearchScore.EXACT_EMAIL),  # Reuse EXACT_EMAIL for exact title match
-        (func.lower(models.Document.title).startswith(query_lower), SearchScore.STARTS_WITH_EMAIL),  # Reuse STARTS_WITH_EMAIL
-        (func.lower(models.Document.title).like(f'%{query_lower}%'), SearchScore.CONTAINS_EMAIL),  # Reuse CONTAINS_EMAIL
-        (func.lower(models.Document.content).like(f'%{query_lower}%'), SearchScore.CONTAINS_DESCRIPTION),  # Reuse CONTAINS_DESCRIPTION
+        # Exact phrase matches (highest priority)
+        (func.lower(models.Document.title) == query_lower, SearchScore.EXACT_EMAIL),
+        (func.lower(models.Document.title).startswith(query_lower), SearchScore.STARTS_WITH_EMAIL),
+        (func.lower(models.Document.title).like(f'%{query_lower}%'), SearchScore.CONTAINS_EMAIL),
+        (func.lower(models.Document.content).like(f'%{query_lower}%'), SearchScore.CONTAINS_DESCRIPTION),
         else_=0
     ).label('relevance')
     
@@ -124,32 +143,57 @@ def search_documents_keyword(
         models.Document,
         relevance_score
     ).filter(
-        or_(
-            func.lower(models.Document.title).like(f'%{query_lower}%'),
-            func.lower(models.Document.content).like(f'%{query_lower}%')
-        )
+        or_(*filter_conditions)
     ).order_by(
         relevance_score.desc()
-    ).limit(limit).all()
+    ).limit(limit * 3).all()  # Get more results for word-level scoring
     
-    # Format results
+    # Format results with word-level scoring
     formatted_results = []
     for doc, relevance in results:
         title_lower = doc.title.lower()
         content_lower = doc.content.lower()
         
-        # Determine match field
-        if query_lower in title_lower:
-            match_field = "title"
+        score = float(relevance) if relevance else 0.0
+        match_field = ""
+        
+        # Phrase match scoring (already done in SQL)
+        if score > 0:
+            if query_lower in title_lower:
+                match_field = "title"
+            else:
+                match_field = "content"
         else:
-            match_field = "content"
+            # Word-level matching: score based on how many query words appear
+            words_in_title = sum(1 for word in query_words if word in title_lower)
+            words_in_content = sum(1 for word in query_words if word in content_lower)
+            
+            if words_in_title > 0 or words_in_content > 0:
+                # Calculate score based on word matches
+                # More words matched = higher score
+                total_words = len(query_words)
+                matched_words = max(words_in_title, words_in_content)
+                
+                # Score based on percentage of words matched
+                word_match_ratio = matched_words / total_words if total_words > 0 else 0
+                # Use a lower score for word matches than phrase matches
+                score = word_match_ratio * SearchScore.CONTAINS_DESCRIPTION * 0.8  # 80% of CONTAINS_DESCRIPTION
+                
+                if words_in_title > words_in_content:
+                    match_field = "title"
+                else:
+                    match_field = "content"
+            else:
+                continue  # Skip documents with no matches
         
         # Normalize score to 0-1
-        normalized_score = min(relevance / SCORE_NORMALIZATION_FACTOR, 1.0)
+        normalized_score = min(score / SCORE_NORMALIZATION_FACTOR, 1.0)
         
         formatted_results.append((doc, normalized_score, match_field))
     
-    return formatted_results
+    # Sort by score and limit
+    formatted_results.sort(key=lambda x: x[1], reverse=True)
+    return formatted_results[:limit]
 
 
 def search_documents_semantic(

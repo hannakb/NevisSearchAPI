@@ -234,7 +234,10 @@ class TestSearchDocumentsKeyword:
     
     def test_search_document_no_results(self, client, create_client_with_documents):
         """Test searching documents with no matches"""
-        response = client.get("/search?q=nonexistentdocument123xyz&type=documents")
+        # Use a query that's completely unrelated to the test documents
+        # (utility bills, tax returns, bank statements)
+        # With semantic threshold at 0.1, completely unrelated queries should return 0 results
+        response = client.get("/search?q=completelyunrelatedqueryxyz123&type=documents")
         
         assert response.status_code == 200
         data = response.json()

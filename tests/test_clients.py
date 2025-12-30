@@ -123,13 +123,21 @@ class TestGetClient:
     
     def test_get_client_invalid_id_format(self, client):
         """Test retrieving client with invalid ID format"""
-        # Test with empty string
-        response = client.get("/clients/")
-        assert response.status_code == 404  # FastAPI will route this differently
+        # Test with non-existent but valid-format ID
+        fake_id = "client-00000000-0000-0000-0000-000000000000"
+        response = client.get(f"/clients/{fake_id}")
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
         
         # Test with very long ID
         long_id = "client-" + "a" * 100
         response = client.get(f"/clients/{long_id}")
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+        
+        # Test with invalid format (not starting with "client-")
+        invalid_id = "invalid-format-id"
+        response = client.get(f"/clients/{invalid_id}")
         assert response.status_code == 404
 
 
