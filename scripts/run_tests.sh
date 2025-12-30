@@ -8,17 +8,18 @@ MODE=${1:-docker}
 
 if [ "$MODE" == "docker" ]; then
     echo "Running tests with Docker Compose..."
-    docker-compose up -d db
+    docker-compose up -d db --remove-orphans
     echo "Waiting for database to be ready..."
     sleep 5
     echo "Running tests in Docker container (one-off)..."
-    docker-compose run --rm -e TEST_DATABASE_URL=postgresql://postgres:postgres@db:5432/nevis_search api pytest tests/ -v
+    # Override entrypoint to skip any entrypoint script that might run tests
+    docker-compose run --rm -e DATABASE_URL=postgresql://postgres:postgres@db:5432/nevis_search api pytest tests/ -v
 elif [ "$MODE" == "local" ]; then
     echo "Running tests with local PostgreSQL..."
-    if [ -z "$TEST_DATABASE_URL" ]; then
-        export TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/nevis_search"
+    if [ -z "$DATABASE_URL" ]; then
+        export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/nevis_search"
     fi
-    echo "Using DATABASE_URL: $TEST_DATABASE_URL"
+    echo "Using DATABASE_URL: $DATABASE_URL"
     pytest tests/ -v
 else
     echo "Usage: $0 [docker|local]"

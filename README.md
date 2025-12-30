@@ -31,8 +31,8 @@ docker-compose up -d
 ./scripts/run_tests.sh docker
 
 # Or directly with docker-compose:
-docker-compose up -d db
-docker-compose run --rm -e TEST_DATABASE_URL=postgresql://postgres:postgres@db:5432/nevis_search api pytest tests/ -v
+docker-compose up -d db --remove-orphans
+docker-compose run --rm -e DATABASE_URL=postgresql://postgres:postgres@db:5432/nevis_search api pytest tests/ -v
 
 # Or with local PostgreSQL + local Python (requires local setup)
 ./scripts/run_tests.sh local

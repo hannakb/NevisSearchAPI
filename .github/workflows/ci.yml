@@ -57,7 +57,7 @@ jobs:
     
     - name: Run tests
       env:
-        TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nevis_search
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nevis_search
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         SEMANTIC_SIMILARITY_THRESHOLD: 0.15
       run: |

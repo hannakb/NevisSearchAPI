@@ -9,10 +9,10 @@ from src.database import Base, get_db
 from src import models
 
 # Use the same database as the API (will clean tables between tests)
-# Can be overridden via TEST_DATABASE_URL environment variable
+# Uses DATABASE_URL environment variable (same as the app)
 # Default: Docker Compose service name (for local development)
 DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
+    "DATABASE_URL",
     "postgresql://postgres:postgres@db:5432/nevis_search"
 )
 
