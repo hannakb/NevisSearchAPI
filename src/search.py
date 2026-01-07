@@ -112,15 +112,9 @@ def search_documents_keyword(
     query_lower = query.lower().strip()
     query_words = [w.strip() for w in query_lower.split() if w.strip()]
     
-    # Build filter conditions: phrase match OR all words match
-    # This allows "machine learning" to match documents with "machine translation"
-    filter_conditions = [
-        func.lower(models.Document.title).like(f'%{query_lower}%'),
-        func.lower(models.Document.content).like(f'%{query_lower}%')
-    ]
-    
-    # Add word-level matching: match if ANY word appears (for better recall)
-    # This helps when query words appear separately in the document
+    # Build filter conditions: match if ANY word appears (for better recall)
+    # This covers both phrase matches (documents with all words) and partial matches
+    filter_conditions = []
     for word in query_words:
         filter_conditions.extend([
             func.lower(models.Document.title).like(f'%{word}%'),
