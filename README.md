@@ -22,6 +22,7 @@ API usage:
 - Docker and Docker Compose
 
 ### Running Locally
+Create a .env file and add your OPENAI_API_KEY="sk-..." if you want to use OpenAI for text summarization. Otherwise it will use a fallback in the form of the first sentence of the document.
 
 1. Start services:
 ```bash
@@ -85,10 +86,12 @@ Tests are automatically run in GitHub Actions before any deployment. To run loca
 
 1. Deploy pgvector service - https://railway.com/deploy/3jJFCA
 2. Deploy GitHub code
-3. Add environment variables to the deployed NevisSearchAPI service:
+3. Add environment variables to the deployed NevisSearchAPI service via Railway dashboard (Settings → Variables):
    - `DATABASE_URL` - `${{ pgvector.DATABASE_URL_PRIVATE }}`
-   - `OPENAI_API_KEY` - Your OpenAI API key (you can take one from docker-compose.yml, in future it should be made private)
+   - `OPENAI_API_KEY` - Your OpenAI API key (set via Railway dashboard, not from `.env` file)
    - `SEMANTIC_SIMILARITY_THRESHOLD` - Optional (default: 0.15), so we could callibrate this withouth redeployment
+
+**Note:** The `.env` file is for local development only. Railway doesn't use `.env` files - you must set environment variables through Railway's dashboard or CLI. Railway injects these variables directly into the container at runtime.
 4. (optional) Enable waiting for Github CI to complete before deployment in settings
 
 **Current production URL: https://nevissearchapi-production.up.railway.app/docs**
