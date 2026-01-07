@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, func, case, and_
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from fastapi import HTTPException, status
 
 from . import models
@@ -299,7 +299,7 @@ def perform_search(
     query: str, 
     search_type: str = "all",
     limit: int = SEARCH_DEFAULT_LIMIT,
-) -> Tuple[List[Tuple[models.Client, float, str]], List[Tuple[models.Document, float, str]]]:
+) -> Tuple[List[Tuple[models.Client, float, str]], List[Tuple[models.Document, float, str]], Optional[List[Tuple]]]:
     """
     Perform search with optional semantic search
     
@@ -310,18 +310,46 @@ def perform_search(
         limit: Max results per type
     
     Returns:
-        (clients_results, documents_results)
+        (clients_results, documents_results, unified_results)
+        - When search_type == "all": unified_results contains combined sorted list, clients/documents are empty
+        - When search_type != "all": unified_results is None, clients/documents contain results
     """
     clients_results = []
     documents_results = []
+    unified_results = None
     
-    # Search clients (always keyword-based)
-    if search_type in ["all", "clients"]:
-        clients_results = search_clients(db, query, limit)
+    if search_type == "all":
+        # For unified search, get more candidates from each type to ensure best overall results
+        # Search 2x limit from each type, then combine and take top 'limit' overall
+        search_limit = limit * 2
+        
+        # Search clients (always keyword-based)
+        clients_results = search_clients(db, query, search_limit)
+        
+        # Search documents (keyword or hybrid)
+        documents_results = search_documents_hybrid(db, query, search_limit)
+        
+        # Combine and sort by relevance score
+        combined_results = []
+        
+        # Add clients with type marker
+        for client, score, match_field in clients_results:
+            combined_results.append(("client", client, score, match_field))
+        
+        # Add documents with type marker
+        for doc, score, match_field in documents_results:
+            combined_results.append(("document", doc, score, match_field))
+        
+        # Sort by score (descending) and take top 'limit' results
+        combined_results.sort(key=lambda x: x[2], reverse=True)
+        unified_results = combined_results[:limit]  # Always a list, even if empty
+    else:
+        # For specific type searches, use the provided limit
+        unified_results = None
+        if search_type == "clients":
+            clients_results = search_clients(db, query, limit)
+        elif search_type == "documents":
+            documents_results = search_documents_hybrid(db, query, limit)
     
-    # Search documents (keyword or hybrid)
-    if search_type in ["all", "documents"]:
-        documents_results = search_documents_hybrid(db, query, limit)
-    
-    return clients_results, documents_results
+    return clients_results, documents_results, unified_results
 

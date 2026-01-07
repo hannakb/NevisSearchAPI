@@ -354,11 +354,48 @@ def search(
         )
     
     # Perform search (always uses hybrid search for documents)
-    clients_results, documents_results = search_module.perform_search(
+    clients_results, documents_results, unified_results = search_module.perform_search(
         db, q, type.value, limit
     )
     
-    # Format client results
+    # Handle unified results for type="all"
+    if type == schemas.SearchType.ALL:
+        results = []
+        if unified_results:
+            for result_type, item, score, match_field in unified_results:
+                if result_type == "client":
+                    client = item
+                    results.append(schemas.UnifiedSearchResult(
+                        result_type="client",
+                        id=client.id,
+                        match_score=score,
+                        match_field=match_field,
+                        first_name=client.first_name,
+                        last_name=client.last_name,
+                        email=client.email,
+                        description=client.description
+                    ))
+                else:  # document
+                    doc = item
+                    results.append(schemas.UnifiedSearchResult(
+                        result_type="document",
+                        id=doc.id,
+                        match_score=score,
+                        match_field=match_field,
+                        client_id=doc.client_id,
+                        title=doc.title,
+                        content=doc.content,
+                        created_at=doc.created_at
+                    ))
+        
+        return schemas.SearchResponse(
+            query=q,
+            search_type=type,
+            results=results,
+            total_results=len(results)
+        )
+    
+    # Handle separate results for type="clients" or "documents"
     clients = [
         schemas.ClientSearchResult(
             id=client.id,
@@ -372,7 +409,6 @@ def search(
         for client, score, match_field in clients_results
     ]
     
-    # Format document results
     documents = [
         schemas.DocumentSearchResult(
             id=doc.id,

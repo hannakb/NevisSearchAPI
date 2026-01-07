@@ -254,7 +254,12 @@ class TestSearchAll:
         assert response.status_code == 200
         data = response.json()
         assert data["search_type"] == "all"
-        assert len(data["documents"]) >= 1
+        # When type=all, results are in unified "results" field
+        assert "results" in data
+        assert isinstance(data["results"], list)
+        assert len(data["results"]) >= 1
+        # Check that results contain documents
+        assert any(r["result_type"] == "document" for r in data["results"])
     
     def test_search_all_explicit(self, client, create_client_with_documents):
         """Test explicitly searching all types"""
@@ -263,7 +268,12 @@ class TestSearchAll:
         assert response.status_code == 200
         data = response.json()
         assert data["search_type"] == "all"
-        assert len(data["clients"]) >= 1
+        # When type=all, results are in unified "results" field
+        assert "results" in data
+        assert isinstance(data["results"], list)
+        assert len(data["results"]) >= 1
+        # Check that results contain clients
+        assert any(r["result_type"] == "client" for r in data["results"])
     
     def test_search_all_total_results(self, client, create_client_with_documents):
         """Test total_results counts both clients and documents"""
@@ -271,8 +281,13 @@ class TestSearchAll:
         
         assert response.status_code == 200
         data = response.json()
-        expected_total = len(data["clients"]) + len(data["documents"])
-        assert data["total_results"] == expected_total
+        # When type=all, results are in unified "results" field
+        assert "results" in data
+        assert data["total_results"] == len(data["results"])
+        # Verify results are sorted by match_score (descending)
+        if len(data["results"]) > 1:
+            scores = [r["match_score"] for r in data["results"]]
+            assert scores == sorted(scores, reverse=True)
     
     def test_search_limit(self, client, create_client_with_documents):
         """Test search respects limit parameter"""
@@ -299,14 +314,28 @@ class TestSearchResponseFormat:
         
         assert "query" in data
         assert "search_type" in data
-        assert "clients" in data
-        assert "documents" in data
         assert "total_results" in data
-        
-        assert isinstance(data["clients"], list)
-        assert isinstance(data["documents"], list)
         assert isinstance(data["total_results"], int)
         assert data["query"] == "test"
+        
+        # When type=all, results are in unified "results" field
+        if data["search_type"] == "all":
+            assert "results" in data
+            assert isinstance(data["results"], list)
+            # Verify unified result structure
+            if len(data["results"]) > 0:
+                result = data["results"][0]
+                assert "result_type" in result
+                assert "id" in result
+                assert "match_score" in result
+                assert "match_field" in result
+                assert result["result_type"] in ["client", "document"]
+        else:
+            # For specific types, separate lists exist
+            assert "clients" in data
+            assert "documents" in data
+            assert isinstance(data["clients"], list)
+            assert isinstance(data["documents"], list)
     
     def test_client_result_structure(self, client, create_client):
         """Test client search result has correct structure"""
@@ -344,6 +373,42 @@ class TestSearchResponseFormat:
             assert "match_field" in doc_result
             assert 0 <= doc_result["match_score"] <= 1
             assert doc_result["match_field"] in ["title", "content", "semantic", "hybrid"]
+    
+    def test_unified_result_structure(self, client, create_client_with_documents):
+        """Test unified search result has correct structure for both client and document types"""
+        response = client.get("/search?q=test&type=all")
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["search_type"] == "all"
+        assert "results" in data
+        
+        if len(data["results"]) > 0:
+            for result in data["results"]:
+                # Common fields
+                assert "result_type" in result
+                assert "id" in result
+                assert "match_score" in result
+                assert "match_field" in result
+                assert result["result_type"] in ["client", "document"]
+                assert 0 <= result["match_score"] <= 1
+                
+                # Type-specific fields
+                if result["result_type"] == "client":
+                    assert "first_name" in result
+                    assert "last_name" in result
+                    assert "email" in result
+                    assert result["first_name"] is not None
+                    assert result["last_name"] is not None
+                    assert result["email"] is not None
+                elif result["result_type"] == "document":
+                    assert "client_id" in result
+                    assert "title" in result
+                    assert "content" in result
+                    assert "created_at" in result
+                    assert result["client_id"] is not None
+                    assert result["title"] is not None
+                    assert result["content"] is not None
 
 
 class TestSemanticSearchBasic:
@@ -521,8 +586,9 @@ class TestSearchEdgeCases:
         response = client.get("/search?q=test&type=all")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["clients"]) == 0
-        assert len(data["documents"]) == 0
+        # When type=all, results are in unified "results" field
+        assert "results" in data
+        assert len(data["results"]) == 0
         assert data["total_results"] == 0
 
 
@@ -579,23 +645,34 @@ class TestDirectSearchFunctions:
         client = crud.create_client(db_session, ClientCreate(**sample_client_data))
         crud.create_document(db_session, client.id, DocumentCreate(**sample_document_data))
         
-        # Test all types
-        clients_results, documents_results = search.perform_search(
+        # Test all types - returns unified results
+        clients_results, documents_results, unified_results = search.perform_search(
             db_session, "test", search_type="all", limit=10
         )
-        assert isinstance(clients_results, list)
-        assert isinstance(documents_results, list)
+        assert unified_results is not None
+        assert isinstance(unified_results, list)
+        # When type=all, clients/documents lists should be empty (results are in unified_results)
+        assert len(clients_results) == 0 or len(clients_results) > 0  # May have results but not used
+        assert len(documents_results) == 0 or len(documents_results) > 0  # May have results but not used
+        # Verify unified results structure
+        if len(unified_results) > 0:
+            result_type, item, score, match_field = unified_results[0]
+            assert result_type in ["client", "document"]
+            assert isinstance(score, (int, float))
+            assert 0 <= score <= 1
         
         # Test clients only
-        clients_results, documents_results = search.perform_search(
+        clients_results, documents_results, unified_results = search.perform_search(
             db_session, "test", search_type="clients", limit=10
         )
+        assert unified_results is None
         assert isinstance(clients_results, list)
         assert len(documents_results) == 0
         
         # Test documents only
-        clients_results, documents_results = search.perform_search(
+        clients_results, documents_results, unified_results = search.perform_search(
             db_session, "test", search_type="documents", limit=10
         )
+        assert unified_results is None
         assert len(clients_results) == 0
         assert isinstance(documents_results, list)

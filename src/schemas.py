@@ -85,9 +85,32 @@ class DocumentSearchResult(BaseModel):
     match_field: str  # "title" or "content"
 
 
+class UnifiedSearchResult(BaseModel):
+    """Unified search result that can represent either a client or document"""
+    result_type: str = Field(..., description="Type of result: 'client' or 'document'")
+    id: str
+    match_score: float = Field(..., ge=0.0, le=1.0)
+    match_field: str
+    
+    # Client fields (only present when result_type == "client")
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    description: Optional[str] = None
+    
+    # Document fields (only present when result_type == "document")
+    client_id: Optional[str] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
 class SearchResponse(BaseModel):
     query: str
     search_type: SearchType
+    # For type="all": unified sorted results
+    results: Optional[List[UnifiedSearchResult]] = None
+    # For type="clients" or "documents": separate lists (backward compatibility)
     clients: List[ClientSearchResult] = []
     documents: List[DocumentSearchResult] = []
     total_results: int
